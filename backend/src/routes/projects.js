@@ -1,0 +1,178 @@
+'use strict';
+
+/**
+ * SecuScan — Projects Routes
+ *
+ * GET  /api/projects      — List all projects owned by the logged-in user
+ * GET  /api/projects/:id  — Get project details and scan history (ownership-protected)
+ * POST /api/projects      — Create a new project (ownership-protected)
+ */
+
+const express = require('express');
+const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+const { stmts } = require('../db');
+const { validateProjectPost, validateProjectIdParam } = require('../validation');
+const { requireAuth } = require('../middlewares/authMiddleware');
+
+const router = express.Router();
+
+// Helper: Calculate combined score and gap insights
+function getCombinedScoreInfo(latestScans) {
+  const repoScan = latestScans.find((s) => s.target_type === 'repo');
+  const siteScan = latestScans.find((s) => s.target_type === 'website');
+
+  let combinedScore = null;
+  let insight = null;
+
+  if (repoScan && siteScan) {
+    combinedScore = Math.round((repoScan.score + siteScan.score) / 2);
+    const gap = repoScan.score - siteScan.score;
+
+    if (gap > 25) {
+      insight = {
+        type: 'repo-high',
+        text: 'Your codebase looks secure, but the live site has security gaps. Check for exposed files, missing headers, or a configuration issue in your staging/production server.'
+      };
+    } else if (gap < -25) {
+      insight = {
+        type: 'site-high',
+        text: 'Your live deployment is well-protected, but there are active issues in your code repository (secrets or packages) that could surface on your next deploy.'
+      };
+    }
+  } else if (repoScan) {
+    combinedScore = repoScan.score;
+  } else if (siteScan) {
+    combinedScore = siteScan.score;
+  }
+
+  return {
+    combinedScore,
+    insight,
+    hasRepo: !!repoScan,
+    hasSite: !!siteScan,
+    latestRepo: repoScan || null,
+    latestSite: siteScan || null,
+  };
+}
+
+// ─── GET /api/projects ────────────────────────────────────────────────────────
+router.get('/', requireAuth, (req, res) => {
+  try {
+    const projects = stmts.getProjectsByOwner.all(req.user.id);
+    const result = projects.map((p) => {
+      const latestScans = stmts.getLatestScansForProject.all(p.id, p.id);
+      const scoreInfo   = getCombinedScoreInfo(latestScans);
+
+      return {
+        id:            p.id,
+        name:          p.name,
+        createdAt:     p.created_at,
+        combinedScore: scoreInfo.combinedScore,
+        hasRepo:       scoreInfo.hasRepo,
+        hasSite:       scoreInfo.hasSite,
+        latestRepoScore: scoreInfo.latestRepo?.score ?? null,
+        latestSiteScore: scoreInfo.latestSite?.score ?? null,
+        lastScanned:   latestScans.length > 0
+          ? latestScans.reduce((max, s) => s.completed_at > max ? s.completed_at : max, latestScans[0].completed_at)
+          : null,
+      };
+    });
+
+    return res.json({ projects: result });
+  } catch (err) {
+    console.error('[Projects Route] Get projects failed:', err);
+    return res.status(500).json({ error: 'Failed to retrieve projects list.' });
+  }
+});
+
+// ─── GET /api/projects/:id ───────────────────────────────────────────────────
+router.get('/:id', requireAuth, validateProjectIdParam, (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const project = stmts.getProjectWithOwner.get(id, req.user.id);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found.' });
+    }
+
+    const latestScans = stmts.getLatestScansForProject.all(id, id);
+    const scoreInfo   = getCombinedScoreInfo(latestScans);
+    const history     = stmts.getScansForProject.all(id);
+
+    return res.json({
+      project: {
+        id:        project.id,
+        name:      project.name,
+        apiToken:  project.api_token,
+        createdAt: project.created_at,
+      },
+      scoreInfo: {
+        combinedScore: scoreInfo.combinedScore,
+        insight:       scoreInfo.insight,
+        hasRepo:       scoreInfo.hasRepo,
+        hasSite:       scoreInfo.hasSite,
+        latestRepo:    scoreInfo.latestRepo,
+        latestSite:    scoreInfo.latestSite,
+      },
+      history: history.map((s) => ({
+        id:          s.id,
+        targetUrl:   s.target_url,
+        targetType:  s.target_type,
+        status:      s.status,
+        score:       s.score,
+        grade:       s.grade,
+        createdAt:    s.created_at,
+        completedAt:  s.completed_at,
+        error:       s.error_msg,
+      })),
+    });
+  } catch (err) {
+    console.error('[Projects Route] Get project details failed:', err);
+    return res.status(500).json({ error: 'Failed to retrieve project details.' });
+  }
+});
+
+// ─── POST /api/projects ──────────────────────────────────────────────────────
+router.post('/', requireAuth, validateProjectPost, (req, res) => {
+  const { name } = req.body ?? {};
+  const cleanName = name.trim();
+
+  try {
+    const existing = stmts.getProjectByNameAndOwner.get(cleanName, req.user.id);
+    if (existing) {
+      return res.status(409).json({ error: 'A project with this name already exists.', projectId: existing.id });
+    }
+
+    const id = uuidv4();
+    const apiToken = 'secuscan_proj_' + crypto.randomBytes(24).toString('hex');
+    stmts.insertProjectWithOwner.run(id, cleanName, apiToken, req.user.id);
+
+    return res.status(201).json({ message: 'Project created.', id, name: cleanName, apiToken });
+  } catch (err) {
+    console.error('[Projects Route] Project creation failed:', err);
+    return res.status(500).json({ error: 'Failed to create project.' });
+  }
+});
+
+// ─── POST /api/projects/:id/regenerate-token ────────────────────────────────
+router.post('/:id/regenerate-token', requireAuth, validateProjectIdParam, (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const project = stmts.getProjectWithOwner.get(id, req.user.id);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found.' });
+    }
+
+    const apiToken = 'secuscan_proj_' + crypto.randomBytes(24).toString('hex');
+    stmts.updateProjectTokenWithOwner.run(apiToken, id, req.user.id);
+
+    return res.json({ message: 'Token regenerated.', apiToken });
+  } catch (err) {
+    console.error('[Projects Route] Token regeneration failed:', err);
+    return res.status(500).json({ error: 'Failed to regenerate project token.' });
+  }
+});
+
+module.exports = router;

@@ -1,0 +1,38 @@
+services:
+  # ─── Backend Docker Service ──────────────────────────────────────────
+  - type: web
+    name: secuscan-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter # Requires at least 512MB RAM for gitleaks/trivy
+    disk:
+      name: secuscan-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: NODE_ENV
+        value: production
+      - key: DB_DIR
+        value: /data
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: secuscan-frontend
+          envVarKey: RENDER_EXTERNAL_URL
+
+  # ─── Frontend Static Site ──────────────────────────────────────────
+  - type: web
+    name: secuscan-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    rootDir: frontend
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: secuscan-backend
+          envVarKey: RENDER_EXTERNAL_URL

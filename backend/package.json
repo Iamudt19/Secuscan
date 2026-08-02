@@ -1,0 +1,29 @@
+{
+  "name": "secuscan-backend",
+  "version": "1.0.0",
+  "description": "SecuScan — Security Posture Scanner API",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [
+    "security",
+    "scanner",
+    "secuscan"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.18.1",
+    "better-sqlite3": "^12.11.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "jsonwebtoken": "^9.0.3",
+    "node-forge": "^1.4.0",
+    "simple-git": "^3.36.0",
+    "uuid": "^14.0.1"
+  }
+}
