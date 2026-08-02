@@ -1,13 +1,32 @@
 {
   "name": "secuscan",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "SecuScan — Security Posture Scanner",
+  "main": "api/index.js",
   "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "start": "cd backend && npm start",
+    "dev": "cd backend && npm run dev",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "security",
+    "scanner",
+    "secuscan"
+  ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.18.1",
+    "better-sqlite3": "^12.11.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "jsonwebtoken": "^9.0.3",
+    "node-forge": "^1.4.0",
+    "simple-git": "^3.36.0",
+    "uuid": "^14.0.1"
+  }
 }

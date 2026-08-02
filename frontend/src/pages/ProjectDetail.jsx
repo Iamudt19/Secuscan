@@ -159,7 +159,7 @@ jobs:
 
       - name: Trigger SecuScan Security Check
         run: |
-          curl -X POST "https://secuscan-api.onrender.com/api/scan/ci-scan" \\
+          curl -X POST "https://your-secuscan-app.vercel.app/api/scan/ci-scan" \\
             -H "Authorization: Bearer \${{ secrets.SECUSCAN_PROJECT_TOKEN }}" \\
             -H "Content-Type: application/json" \\
             -d '{"repo_url": "\${{ github.event.repository.html_url }}", "commit_sha": "\${{ github.sha }}", "project_id": "${project.id}"}'`;

@@ -146,7 +146,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run SecuScan Audit
         run: |
-          curl -X POST https://secuscan.onrender.com/api/scan \\
+          curl -X POST https://your-secuscan-app.vercel.app/api/scan \\
             -H "Authorization: Bearer ${apiKey}" \\
             -H "Content-Type: application/json" \\
             -d '{"url": "https://github me/repo"}'`}

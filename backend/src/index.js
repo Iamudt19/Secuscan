@@ -21,8 +21,9 @@ const PORT = process.env.PORT || 3001;
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  methods: ['GET', 'POST'],
+  origin: process.env.FRONTEND_URL || true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 
 app.use(express.json({
@@ -137,10 +138,12 @@ app.use((err, _req, res, _next) => {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
-  console.log(`\n🔒 SecuScan backend running on http://localhost:${PORT}`);
-  console.log(`   Phase 1 — website header check adapter active`);
-  console.log(`   Health: http://localhost:${PORT}/api/health\n`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n🔒 SecuScan backend running on http://localhost:${PORT}`);
+    console.log(`   Phase 1 — website header check adapter active`);
+    console.log(`   Health: http://localhost:${PORT}/api/health\n`);
+  });
+}
 
 module.exports = app;
