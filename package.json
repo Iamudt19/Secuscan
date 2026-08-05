@@ -4,7 +4,7 @@
   "description": "SecuScan — Security Posture Scanner",
   "main": "api/index.js",
   "scripts": {
-    "build": "npm install --prefix frontend && npm run build --prefix frontend && node -e \"try { require('fs').cpSync('frontend/dist', 'dist', {recursive: true}) } catch(e){}\"",
+    "build": "npm install --include=dev --prefix frontend && npm run build --prefix frontend && node -e \"try { require('fs').cpSync('frontend/dist', 'dist', {recursive: true}) } catch(e){}\"",
     "start": "cd backend && npm start",
     "dev": "cd backend && npm run dev",
     "test": "echo \"Error: no test specified\" && exit 1"
