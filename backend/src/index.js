@@ -131,10 +131,17 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', version: '1.0.0', phase: 4 });
 });
 
-app.use('/api/scan',    scanRouter);
-app.use('/api/history', historyRouter);
+const contactRouter  = require('./routes/contact');
+const adminRouter    = require('./routes/admin');
+const featuresRouter = require('./routes/features');
+
+app.use('/api/scan',     scanRouter);
+app.use('/api/history',  historyRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/auth',     authRouter);
+app.use('/api/contact',  contactRouter);
+app.use('/api/admin',    adminRouter);
+app.use('/api',          featuresRouter);
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────
 

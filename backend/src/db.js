@@ -103,6 +103,30 @@ async function initDb() {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS contact_messages (
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      email      TEXT NOT NULL,
+      subject    TEXT NOT NULL,
+      message    TEXT NOT NULL,
+      is_read    INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS watchdogs (
+      id          TEXT PRIMARY KEY,
+      user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      target_url  TEXT NOT NULL,
+      frequency   TEXT NOT NULL DEFAULT 'weekly',
+      last_run    TIMESTAMPTZ,
+      status      TEXT NOT NULL DEFAULT 'active',
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
   console.log('✅ Neon PostgreSQL schema initialised');
 }
 
@@ -384,13 +408,60 @@ const db = {
 
   // ── Ad-hoc Queries ──────────────────────────────────────────────────────────
 
-  findProjectByScanUrl: async (urlPattern) => {
-    const rows = await sql`
-      SELECT project_id, project_name FROM scans
-      WHERE target_url LIKE ${'%' + urlPattern + '%'} AND project_id IS NOT NULL
-      LIMIT 1
+  // ── Contact & Admin ─────────────────────────────────────────────────────────
+
+  insertContactMessage: async ({ id, name, email, subject, message }) => {
+    await sql`
+      INSERT INTO contact_messages (id, name, email, subject, message)
+      VALUES (${id}, ${name}, ${email}, ${subject}, ${message})
     `;
-    return rows[0];
+  },
+
+  getContactMessages: async () => {
+    return await sql`SELECT * FROM contact_messages ORDER BY created_at DESC LIMIT 100`;
+  },
+
+  deleteContactMessage: async (id) => {
+    await sql`DELETE FROM contact_messages WHERE id = ${id}`;
+  },
+
+  markContactMessageRead: async (id) => {
+    await sql`UPDATE contact_messages SET is_read = 1 WHERE id = ${id}`;
+  },
+
+  getAdminStats: async () => {
+    const userCount = await sql`SELECT COUNT(*)::int as count FROM users`;
+    const scanCount = await sql`SELECT COUNT(*)::int as count FROM scans`;
+    const projCount = await sql`SELECT COUNT(*)::int as count FROM projects`;
+    const findingCount = await sql`SELECT COUNT(*)::int as count FROM findings`;
+    const msgCount = await sql`SELECT COUNT(*)::int as count FROM contact_messages`;
+    const recentScans = await sql`SELECT * FROM scans ORDER BY created_at DESC LIMIT 5`;
+
+    return {
+      users: userCount[0]?.count || 0,
+      scans: scanCount[0]?.count || 0,
+      projects: projCount[0]?.count || 0,
+      findings: findingCount[0]?.count || 0,
+      messages: msgCount[0]?.count || 0,
+      recentScans,
+    };
+  },
+
+  // ── Watchdogs ───────────────────────────────────────────────────────────────
+
+  createWatchdog: async ({ id, user_id, target_url, frequency }) => {
+    await sql`
+      INSERT INTO watchdogs (id, user_id, target_url, frequency)
+      VALUES (${id}, ${user_id}, ${target_url}, ${frequency || 'weekly'})
+    `;
+  },
+
+  getWatchdogsByUser: async (userId) => {
+    return await sql`SELECT * FROM watchdogs WHERE user_id = ${userId} ORDER BY created_at DESC`;
+  },
+
+  deleteWatchdog: async (id, userId) => {
+    await sql`DELETE FROM watchdogs WHERE id = ${id} AND user_id = ${userId}`;
   },
 };
 
