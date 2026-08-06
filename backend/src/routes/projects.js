@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SecuScan — Projects Routes
+ * Vulta — Projects Routes
  *
  * GET  /api/projects      — List all projects owned by the logged-in user
  * GET  /api/projects/:id  — Get project details and scan history (ownership-protected)
@@ -11,7 +11,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
-const { stmts } = require('../db');
+const db = require('../db');
 const { validateProjectPost, validateProjectIdParam } = require('../validation');
 const { requireAuth } = require('../middlewares/authMiddleware');
 
@@ -57,11 +57,11 @@ function getCombinedScoreInfo(latestScans) {
 }
 
 // ─── GET /api/projects ────────────────────────────────────────────────────────
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
-    const projects = stmts.getProjectsByOwner.all(req.user.id);
-    const result = projects.map((p) => {
-      const latestScans = stmts.getLatestScansForProject.all(p.id, p.id);
+    const projects = await db.getProjectsByOwner(req.user.id);
+    const result = await Promise.all(projects.map(async (p) => {
+      const latestScans = await db.getLatestScansForProject(p.id);
       const scoreInfo   = getCombinedScoreInfo(latestScans);
 
       return {
@@ -77,7 +77,7 @@ router.get('/', requireAuth, (req, res) => {
           ? latestScans.reduce((max, s) => s.completed_at > max ? s.completed_at : max, latestScans[0].completed_at)
           : null,
       };
-    });
+    }));
 
     return res.json({ projects: result });
   } catch (err) {
@@ -87,18 +87,18 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 // ─── GET /api/projects/:id ───────────────────────────────────────────────────
-router.get('/:id', requireAuth, validateProjectIdParam, (req, res) => {
+router.get('/:id', requireAuth, validateProjectIdParam, async (req, res) => {
   const { id } = req.params;
 
   try {
-    const project = stmts.getProjectWithOwner.get(id, req.user.id);
+    const project = await db.getProjectWithOwner(id, req.user.id);
     if (!project) {
       return res.status(404).json({ error: 'Project not found.' });
     }
 
-    const latestScans = stmts.getLatestScansForProject.all(id, id);
+    const latestScans = await db.getLatestScansForProject(id);
     const scoreInfo   = getCombinedScoreInfo(latestScans);
-    const history     = stmts.getScansForProject.all(id);
+    const history     = await db.getScansForProject(id);
 
     return res.json({
       project: {
@@ -134,19 +134,19 @@ router.get('/:id', requireAuth, validateProjectIdParam, (req, res) => {
 });
 
 // ─── POST /api/projects ──────────────────────────────────────────────────────
-router.post('/', requireAuth, validateProjectPost, (req, res) => {
+router.post('/', requireAuth, validateProjectPost, async (req, res) => {
   const { name } = req.body ?? {};
   const cleanName = name.trim();
 
   try {
-    const existing = stmts.getProjectByNameAndOwner.get(cleanName, req.user.id);
+    const existing = await db.getProjectByNameAndOwner(cleanName, req.user.id);
     if (existing) {
       return res.status(409).json({ error: 'A project with this name already exists.', projectId: existing.id });
     }
 
     const id = uuidv4();
-    const apiToken = 'secuscan_proj_' + crypto.randomBytes(24).toString('hex');
-    stmts.insertProjectWithOwner.run(id, cleanName, apiToken, req.user.id);
+    const apiToken = 'vulta_proj_' + crypto.randomBytes(24).toString('hex');
+    await db.insertProjectWithOwner(id, cleanName, apiToken, req.user.id);
 
     return res.status(201).json({ message: 'Project created.', id, name: cleanName, apiToken });
   } catch (err) {
@@ -156,17 +156,17 @@ router.post('/', requireAuth, validateProjectPost, (req, res) => {
 });
 
 // ─── POST /api/projects/:id/regenerate-token ────────────────────────────────
-router.post('/:id/regenerate-token', requireAuth, validateProjectIdParam, (req, res) => {
+router.post('/:id/regenerate-token', requireAuth, validateProjectIdParam, async (req, res) => {
   const { id } = req.params;
 
   try {
-    const project = stmts.getProjectWithOwner.get(id, req.user.id);
+    const project = await db.getProjectWithOwner(id, req.user.id);
     if (!project) {
       return res.status(404).json({ error: 'Project not found.' });
     }
 
-    const apiToken = 'secuscan_proj_' + crypto.randomBytes(24).toString('hex');
-    stmts.updateProjectTokenWithOwner.run(apiToken, id, req.user.id);
+    const apiToken = 'vulta_proj_' + crypto.randomBytes(24).toString('hex');
+    await db.updateProjectTokenWithOwner(apiToken, id, req.user.id);
 
     return res.json({ message: 'Token regenerated.', apiToken });
   } catch (err) {

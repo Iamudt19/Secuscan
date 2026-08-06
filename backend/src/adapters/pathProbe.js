@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SecuScan — Exposed Path Probe Adapter (Phase 2)
+ * Vulta — Exposed Path Probe Adapter (Phase 2)
  *
  * Probes a curated list of paths commonly left exposed by accident.
  * Kept intentionally small and polite — this is NOT a directory brute-force,
@@ -23,7 +23,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { safeGet }    = require('../ssrfGuard');
 
-const SOURCE_TOOL = 'secuscan-path-probe';
+const SOURCE_TOOL = 'vulta-path-probe';
 
 // ─── Probe targets ────────────────────────────────────────────────────────────
 
@@ -134,7 +134,7 @@ const PROBES = [
  * Returns the response body length and content-type of a known-nonexistent page.
  */
 async function getBaseline(baseUrl) {
-  const randomPath = `/secuscan-probe-${Date.now()}-nonexistent-${Math.random().toString(36).slice(2)}`;
+  const randomPath = `/vulta-probe-${Date.now()}-nonexistent-${Math.random().toString(36).slice(2)}`;
   try {
     const resp = await safeGet(`${baseUrl}${randomPath}`, {
       maxRedirects: 2,

@@ -12,11 +12,24 @@ const projectsRouter = require('./routes/projects');
 const authRouter     = require('./routes/auth');
 const { authenticateSession } = require('./middlewares/authMiddleware');
 
-// Trigger DB initialisation (creates tables on first run)
-require('./db');
+const db = require('./db');
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
+
+// Lazy DB initialisation — runs on first request, works in serverless & local
+let dbReady = false;
+let dbInitPromise = null;
+app.use(async (req, res, next) => {
+  if (!dbReady) {
+    if (!dbInitPromise) dbInitPromise = db.initDb().then(() => { dbReady = true; });
+    try { await dbInitPromise; } catch (err) {
+      console.error('[DB Init Error]', err);
+      return res.status(500).json({ error: 'Database initialisation failed.' });
+    }
+  }
+  next();
+});
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
@@ -64,7 +77,7 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'no-referrer');
   
   // Content Security Policy (CSP) (restricts origins of scripts/objects/styles)
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:3001 http://localhost:5173 https://*; frame-ancestors 'none';");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.googleusercontent.com; connect-src 'self' http://localhost:3001 http://localhost:5173 https://*; frame-ancestors 'none';");
 
   next();
 });
@@ -140,7 +153,7 @@ app.use((err, _req, res, _next) => {
 
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`\n🔒 SecuScan backend running on http://localhost:${PORT}`);
+    console.log(`\n🔒 Vulta backend running on http://localhost:${PORT}`);
     console.log(`   Phase 1 — website header check adapter active`);
     console.log(`   Health: http://localhost:${PORT}/api/health\n`);
   });

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SecuScan — SSL/TLS Check Adapter (Phase 2, corrected)
+ * Vulta — SSL/TLS Check Adapter (Phase 2, corrected)
  *
  * Three clearly-scoped checks (never conflated):
  *
@@ -32,7 +32,7 @@ const { URL }        = require('url');
 const { v4: uuidv4 } = require('uuid');
 const { assertSafeHostname } = require('../ssrfGuard');
 
-const SOURCE_TOOL    = 'secuscan-ssl-check';
+const SOURCE_TOOL    = 'vulta-ssl-check';
 const CONNECT_TIMEOUT = 15_000;
 
 // ─── TLS connection helper ────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ function rawGet(url, timeoutMs = 10_000) {
         port,
         path:     parsed.pathname + parsed.search,
         method:   'GET',
-        headers:  { 'User-Agent': 'SecuScan/2.0 security-audit-tool' },
+        headers:  { 'User-Agent': 'Vulta/2.0 security-audit-tool' },
         // Crucially: no follow-redirects
       },
       (res) => {

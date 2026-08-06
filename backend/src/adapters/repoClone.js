@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SecuScan — Repo Clone Adapter
+ * Vulta — Repo Clone Adapter
  *
  * Shallow-clones a GitHub repository to a temp directory.
  * Enforces:
@@ -40,7 +40,7 @@ function parseGithubUrl(url) {
  */
 async function cloneRepo(repoUrl) {
   const { owner, repo } = parseGithubUrl(repoUrl);
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), `secuscan-${owner}-${repo}-`));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), `vulta-${owner}-${repo}-`));
 
   const git = simpleGit({
     timeout: { block: CLONE_TIMEOUT_MS },

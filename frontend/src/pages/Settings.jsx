@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NodeTracerLine } from '../components/HumanIllustrations';
 
 export default function Settings({ currentUser, onLogout, onNavigateToAuth }) {
-  const [apiKey, setApiKey] = useState('secuscan_user_live_8f3a91b2c4e57890');
+  const [apiKey, setApiKey] = useState('vulta_user_live_8f3a91b2c4e57890');
   const [copiedKey, setCopiedKey] = useState(false);
   const [activeTab, setActiveTab] = useState('account'); // 'account' | 'apikeys' | 'logs' | 'auth-guide'
 
@@ -15,7 +15,7 @@ export default function Settings({ currentUser, onLogout, onNavigateToAuth }) {
   };
 
   const handleRegenerateKey = () => {
-    const newK = 'secuscan_user_live_' + Math.random().toString(36).substring(2, 18);
+    const newK = 'vulta_user_live_' + Math.random().toString(36).substring(2, 18);
     setApiKey(newK);
   };
 
@@ -110,7 +110,7 @@ export default function Settings({ currentUser, onLogout, onNavigateToAuth }) {
               ✦ API Tokens for GitHub Actions &amp; CLI
             </h2>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-              Use your SecuScan API key to trigger automated security audits directly inside your GitHub Actions workflows or deployment scripts.
+              Use your Vulta API key to trigger automated security audits directly inside your GitHub Actions workflows or deployment scripts.
             </p>
 
             <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-panel)', padding: '1.25rem', borderRadius: 'var(--radius)', marginBottom: '1.5rem' }}>
@@ -137,16 +137,16 @@ export default function Settings({ currentUser, onLogout, onNavigateToAuth }) {
             <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', padding: '1.25rem', borderRadius: 'var(--radius)' }}>
               <div className="code-tag code-tag--cyan" style={{ marginBottom: '0.5rem' }}>// GitHub Actions Workflow (.github/workflows/security.yml)</div>
               <pre className="finding-card__code">
-{`name: SecuScan Security Check
+{`name: Vulta Security Check
 on: [push, pull_request]
 jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run SecuScan Audit
+      - name: Run Vulta Audit
         run: |
-          curl -X POST https://your-secuscan-app.vercel.app/api/scan \\
+          curl -X POST https://your-vulta-app.vercel.app/api/scan \\
             -H "Authorization: Bearer ${apiKey}" \\
             -H "Content-Type: application/json" \\
             -d '{"url": "https://github me/repo"}'`}
@@ -189,11 +189,11 @@ jobs:
         {activeTab === 'auth-guide' && (
           <div className="glass-card" style={{ padding: '2rem' }}>
             <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--accent)' }}>
-              ✦ How SecuScan Authentication Works
+              ✦ How Vulta Authentication Works
             </h2>
             <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.75, display: 'grid', gap: '1rem' }}>
               <p>
-                SecuScan includes a built-in, production-grade <strong>SQLite + HTTP-only Cookie Authentication Engine</strong> designed specifically for security software.
+                Vulta includes a built-in, production-grade <strong>SQLite + HTTP-only Cookie Authentication Engine</strong> designed specifically for security software.
               </p>
               <div style={{ background: 'var(--bg-base)', padding: '1.25rem', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius)' }}>
                 <h3 style={{ fontSize: '0.95rem', color: 'var(--cyan)', marginBottom: '0.5rem' }}>1. How to Register &amp; Log In</h3>
@@ -208,7 +208,7 @@ jobs:
               <div style={{ background: 'var(--bg-base)', padding: '1.25rem', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius)' }}>
                 <h3 style={{ fontSize: '0.95rem', color: 'var(--cyan)', marginBottom: '0.5rem' }}>2. Brute-Force &amp; Lockout Protection</h3>
                 <p>
-                  SecuScan automatically tracks failed login attempts. After 3+ consecutive failed logins, exponential account lockouts (5s to 60s) trigger to prevent automated password spraying attacks.
+                  Vulta automatically tracks failed login attempts. After 3+ consecutive failed logins, exponential account lockouts (5s to 60s) trigger to prevent automated password spraying attacks.
                 </p>
               </div>
 

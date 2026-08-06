@@ -3,7 +3,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
-const { stmts } = require('../db');
+const db = require('../db');
 const { hashPassword, verifyPassword } = require('../utils/crypto');
 
 const router = express.Router();
@@ -12,7 +12,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,64}$/;
 
 // ─── POST /api/auth/register ────────────────────────────────────────────────
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   const { email, password } = req.body ?? {};
 
   if (!email || !EMAIL_REGEX.test(email)) {
@@ -26,7 +26,7 @@ router.post('/register', (req, res) => {
   }
 
   try {
-    const existing = stmts.getUserByEmail.get(email.toLowerCase().trim());
+    const existing = await db.getUserByEmail(email.toLowerCase().trim());
     if (existing) {
       return res.status(409).json({ error: 'An account with this email already exists.' });
     }
@@ -36,7 +36,7 @@ router.post('/register', (req, res) => {
     const verifyToken = crypto.randomBytes(32).toString('hex');
     const verifyExpires = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(); // 2 hours
 
-    stmts.insertUser.run({
+    await db.insertUser({
       id,
       email: email.toLowerCase().trim(),
       password_hash: hashed,
@@ -61,7 +61,7 @@ router.post('/register', (req, res) => {
 });
 
 // ─── POST /api/auth/verify ───────────────────────────────────────────────────
-router.post('/verify', (req, res) => {
+router.post('/verify', async (req, res) => {
   const { token } = req.body ?? {};
 
   if (!token || typeof token !== 'string') {
@@ -70,9 +70,7 @@ router.post('/verify', (req, res) => {
 
   try {
     // Look up user with this verification token
-    const user = stmts.getUserByEmail.database.prepare(
-      `SELECT * FROM users WHERE verification_token = ?`
-    ).get(token);
+    const user = await db.getUserByVerificationToken(token);
 
     if (!user) {
       return res.status(400).json({ error: 'Invalid or expired verification token.' });
@@ -83,7 +81,7 @@ router.post('/verify', (req, res) => {
       return res.status(400).json({ error: 'Verification token has expired. Please register again.' });
     }
 
-    stmts.verifyUser.run(user.id);
+    await db.verifyUser(user.id);
     return res.json({ message: 'Email verified successfully! You can now log in.' });
   } catch (err) {
     console.error('[Auth] Verification error:', err);
@@ -92,7 +90,7 @@ router.post('/verify', (req, res) => {
 });
 
 // ─── POST /api/auth/login ────────────────────────────────────────────────────
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password } = req.body ?? {};
 
   if (!email || !password) {
@@ -100,7 +98,7 @@ router.post('/login', (req, res) => {
   }
 
   try {
-    const user = stmts.getUserByEmail.get(email.toLowerCase().trim());
+    const user = await db.getUserByEmail(email.toLowerCase().trim());
     if (!user) {
       console.warn(`[Auth Audit] Login failed: User email "${email}" not found. IP: ${req.ip}`);
       return res.status(401).json({ error: 'Invalid email or password.' });
@@ -135,7 +133,7 @@ router.post('/login', (req, res) => {
         ? new Date(Date.now() + lockDelayMs).toISOString()
         : null;
 
-      stmts.incrementFailedAttempts.run(lockedUntil, user.id);
+      await db.incrementFailedAttempts(lockedUntil, user.id);
 
       console.warn(`[Auth Audit] Login failed: Invalid password for user "${email}" (Attempt #${attempts}). IP: ${req.ip}`);
       if (lockDelayMs > 0) {
@@ -148,12 +146,12 @@ router.post('/login', (req, res) => {
     }
 
     // Success! Reset attempts
-    stmts.resetFailedAttempts.run(user.id);
+    await db.resetFailedAttempts(user.id);
 
     // Create session (expires in 24 hours)
     const sessionId = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    stmts.insertSession.run(sessionId, user.id, expiresAt);
+    await db.insertSession(sessionId, user.id, expiresAt);
 
     // Set secure cookie
     res.setHeader(
@@ -180,7 +178,7 @@ router.post('/login', (req, res) => {
 });
 
 // ─── POST /api/auth/forgot-password ─────────────────────────────────────────
-router.post('/forgot-password', (req, res) => {
+router.post('/forgot-password', async (req, res) => {
   const { email } = req.body ?? {};
 
   if (!email || !EMAIL_REGEX.test(email)) {
@@ -188,7 +186,7 @@ router.post('/forgot-password', (req, res) => {
   }
 
   try {
-    const user = stmts.getUserByEmail.get(email.toLowerCase().trim());
+    const user = await db.getUserByEmail(email.toLowerCase().trim());
     
     // Always return success even if user not found to prevent user enumeration attacks!
     if (!user) {
@@ -198,7 +196,7 @@ router.post('/forgot-password', (req, res) => {
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetExpires = new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString(); // 1 hour
 
-    stmts.setResetToken.run(resetToken, resetExpires, user.id);
+    await db.setResetToken(resetToken, resetExpires, user.id);
 
     const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
     console.log('\n✉️================ [EMAIL SIMULATOR: PASSWORD RESET] ================');
@@ -214,7 +212,7 @@ router.post('/forgot-password', (req, res) => {
 });
 
 // ─── POST /api/auth/reset-password ──────────────────────────────────────────
-router.post('/reset-password', (req, res) => {
+router.post('/reset-password', async (req, res) => {
   const { token, password } = req.body ?? {};
 
   if (!token || typeof token !== 'string') {
@@ -229,9 +227,7 @@ router.post('/reset-password', (req, res) => {
 
   try {
     // Look up user with reset token
-    const user = stmts.getUserByEmail.database.prepare(
-      `SELECT * FROM users WHERE reset_token = ?`
-    ).get(token);
+    const user = await db.getUserByResetToken(token);
 
     if (!user) {
       return res.status(400).json({ error: 'Invalid or expired password reset token.' });
@@ -243,7 +239,7 @@ router.post('/reset-password', (req, res) => {
     }
 
     const hashed = hashPassword(password);
-    stmts.resetPassword.run(hashed, user.id);
+    await db.resetPassword(hashed, user.id);
 
     return res.json({ message: 'Password updated successfully. You can now log in.' });
   } catch (err) {
@@ -253,14 +249,14 @@ router.post('/reset-password', (req, res) => {
 });
 
 // ─── POST /api/auth/logout ───────────────────────────────────────────────────
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
   const sessionId = req.headers.cookie
     ? req.headers.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('session_id='))?.split('=')[1]
     : null;
 
   if (sessionId) {
     try {
-      stmts.deleteSession.run(sessionId);
+      await db.deleteSession(sessionId);
     } catch (err) {
       console.error('[Auth] Logout session delete failed:', err.message);
     }
@@ -276,8 +272,78 @@ router.post('/logout', (req, res) => {
 });
 
 // ─── GET /api/auth/me ────────────────────────────────────────────────────────
-router.get('/me', (req, res) => {
+router.get('/me', async (req, res) => {
   return res.json({ user: req.user });
+});
+
+// ─── POST /api/auth/google ──────────────────────────────────────────────────
+// Google One Tap / Sign-In with Google — receives a Google ID token credential,
+// verifies it server-side, then creates or logs in the user.
+router.post('/google', async (req, res) => {
+  const { credential } = req.body ?? {};
+  if (!credential) {
+    return res.status(400).json({ error: 'Missing Google credential.' });
+  }
+
+  try {
+    const { OAuth2Client } = require('google-auth-library');
+    const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture } = payload;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Google account has no email.' });
+    }
+
+    // Check if user already exists by google_id or email
+    let user = await db.getUserByGoogleId(googleId);
+    if (!user) {
+      user = await db.getUserByEmail(email.toLowerCase());
+    }
+
+    if (user) {
+      // Existing user — log them in
+      console.log(`[Auth] Google sign-in: ${email}`);
+    } else {
+      // New user — auto-register + auto-verify
+      const id = uuidv4();
+      await db.insertUser({
+        id,
+        email: email.toLowerCase(),
+        password_hash: null,
+        google_id: googleId,
+        display_name: name || null,
+        avatar_url: picture || null,
+        verification_token: null,
+        verification_expires: null,
+      });
+      user = await db.getUserById(id);
+      console.log(`[Auth] Google auto-register: ${email}`);
+    }
+
+    // Issue session
+    const sessionId = uuidv4();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    await db.insertSession(sessionId, user.id, expiresAt);
+
+    res.setHeader(
+      'Set-Cookie',
+      `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`
+    );
+
+    return res.json({
+      message: 'Logged in with Google.',
+      user: { id: user.id, email: user.email, display_name: user.display_name || name, avatar_url: user.avatar_url || picture },
+    });
+  } catch (err) {
+    console.error('[Auth] Google sign-in error:', err.message);
+    return res.status(401).json({ error: 'Invalid Google credential.' });
+  }
 });
 
 module.exports = router;

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SecuScan — Secret Scanning Adapter (Phase 2)
+ * Vulta — Secret Scanning Adapter (Phase 2)
  *
  * Primary:  Gitleaks (go binary) — JSON report, full history
  * Fallback: Built-in pattern scanner — regex-based, no binary needed
@@ -19,7 +19,7 @@ const { v4: uuidv4 } = require('uuid');
 const execFileAsync = promisify(execFile);
 
 const SOURCE_GITLEAKS  = 'gitleaks';
-const SOURCE_FALLBACK  = 'secuscan-pattern-scan';
+const SOURCE_FALLBACK  = 'vulta-pattern-scan';
 const SCAN_TIMEOUT_MS  = 60_000;
 
 // ─── Pattern-based fallback ──────────────────────────────────────────────────
@@ -202,7 +202,7 @@ async function runGitleaks(repoPath, scanId) {
   const bin = await findGitleaks();
   if (!bin) throw new Error('gitleaks binary not found');
 
-  const reportPath = path.join(os.tmpdir(), `secuscan-gitleaks-${scanId}.json`);
+  const reportPath = path.join(os.tmpdir(), `vulta-gitleaks-${scanId}.json`);
 
   try {
     // Run gitleaks — exit code 1 means "findings found" (not an error)

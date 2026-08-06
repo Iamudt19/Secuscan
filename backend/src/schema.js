@@ -1,5 +1,5 @@
 /**
- * SecuScan — Unified Findings Schema & Scoring Logic
+ * Vulta — Unified Findings Schema & Scoring Logic
  *
  * Every scanner adapter must normalise its raw output into the Finding shape below.
  * This is the core abstraction that makes the plain-English report possible.

@@ -1,7 +1,7 @@
 'use strict';
 
 const express = require('express');
-const { stmts } = require('../db');
+const db = require('../db');
 const { requireAuth } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
@@ -10,9 +10,9 @@ const router = express.Router();
  * GET /api/history
  * Returns the last 20 scans owned by the logged-in user (no findings detail to keep it fast).
  */
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
-    const rows = stmts.getHistoryByOwner.all(req.user.id);
+    const rows = await db.getHistoryByOwner(req.user.id);
 
     const scans = rows.map((r) => ({
       id:          r.id,

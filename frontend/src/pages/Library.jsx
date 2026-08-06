@@ -108,7 +108,7 @@ export default function Library() {
             &lt;threat_library/&gt;
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '680px' }}>
-            Full index of automated security rules, vulnerability heuristics, attack vector descriptions, and remediation code snippets evaluated by SecuScan.
+            Full index of automated security rules, vulnerability heuristics, attack vector descriptions, and remediation code snippets evaluated by Vulta.
           </p>
         </div>
 

@@ -1,7 +1,7 @@
 {
-  "name": "secuscan-backend",
+  "name": "vulta-backend",
   "version": "1.0.0",
-  "description": "SecuScan — Security Posture Scanner API",
+  "description": "Vulta — Scan. Fix. Ship Fearless. API",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -10,17 +10,18 @@
   "keywords": [
     "security",
     "scanner",
-    "secuscan"
+    "vulta"
   ],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "axios": "^1.18.1",
-    "better-sqlite3": "^12.11.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
+    "google-auth-library": "^11.0.0",
     "jsonwebtoken": "^9.0.3",
     "node-forge": "^1.4.0",
     "simple-git": "^3.36.0",

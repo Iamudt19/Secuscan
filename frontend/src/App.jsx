@@ -121,7 +121,7 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
             <a href="/" className="navbar__logo" onClick={(e) => { e.preventDefault(); handleNewScan(); }}>
               <div className="navbar__logo-icon" aria-hidden="true">✦</div>
-              SecuScan
+              Vulta
             </a>
 
             {/* Code-style Navigation Links */}
@@ -265,7 +265,7 @@ export default function App() {
       {/* Footer */}
       <footer style={{ padding: '2rem 0', marginTop: '4rem', textAlign: 'center' }}>
         <div className="container--wide">
-          <NodeTracerLine label="SecuScan v1.0 — Humanised Security Posture Scanner" labelColor="var(--text-muted)" />
+          <NodeTracerLine label="Vulta v1.0 — Scan. Fix. Ship Fearless." labelColor="var(--text-muted)" />
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', marginTop: '0.75rem', fontSize: '0.78rem' }}>
             <button type="button" onClick={() => setView('home')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Home</button>
             <button type="button" onClick={() => setView('docs')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Docs</button>

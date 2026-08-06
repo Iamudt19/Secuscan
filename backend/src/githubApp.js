@@ -57,7 +57,7 @@ async function getInstallationAccessToken(installationId) {
  * Includes collapsible details for scannability.
  */
 function formatPrCommentMarkdown(projectName, score, repoFindings, websiteFindings) {
-  let markdown = `## 🔒 SecuScan Security Report — **${projectName}**\n\n`;
+  let markdown = `## 🔒 Vulta Security Report — **${projectName}**\n\n`;
 
   // Score emoji + badge
   let scoreEmoji = '🔴';
@@ -65,7 +65,7 @@ function formatPrCommentMarkdown(projectName, score, repoFindings, websiteFindin
   else if (score >= 60) scoreEmoji = '🟡';
 
   markdown += `### **Security Score: ${scoreEmoji} ${score}/100**\n`;
-  markdown += `*This check was automated by the SecuScan PR Monitor integration.*\n\n`;
+  markdown += `*This check was automated by the Vulta PR Monitor integration.*\n\n`;
 
   // Code Findings section
   markdown += `### 🐙 Code Security Audits (${repoFindings.length} issue${repoFindings.length !== 1 ? 's' : ''})\n`;
@@ -134,7 +134,7 @@ function formatPrCommentMarkdown(projectName, score, repoFindings, websiteFindin
   }
 
   markdown += `---\n`;
-  markdown += `*Fix issues today to prevent compromise. View the full combined dashboard inside [SecuScan Portal](http://localhost:5173).*`;
+  markdown += `*Fix issues today to prevent compromise. View the full combined dashboard inside [Vulta Portal](http://localhost:5173).*`;
 
   return markdown;
 }
@@ -183,14 +183,14 @@ async function postGithubFeedback({
     await axios.post(
       `${GITHUB_API_URL}/repos/${owner}/${repo}/check-runs`,
       {
-        name: 'SecuScan Audit',
+        name: 'Vulta Audit',
         head_sha: commitSha,
         status: 'completed',
         conclusion: conclusion,
         completed_at: new Date().toISOString(),
         output: {
-          title: `SecuScan Score: ${score}/100`,
-          summary: `SecuScan completed checking codebase. Found ${repoFindings.length} issue(s).`,
+          title: `Vulta Score: ${score}/100`,
+          summary: `Vulta completed checking codebase. Found ${repoFindings.length} issue(s).`,
         },
       },
       {

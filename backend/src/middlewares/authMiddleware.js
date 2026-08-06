@@ -1,6 +1,6 @@
 'use strict';
 
-const { stmts } = require('../db');
+const db = require('../db');
 
 /**
  * Session Authentication Middleware
@@ -31,7 +31,7 @@ async function authenticateSession(req, res, next) {
   }
 
   try {
-    const session = stmts.getSession.get(sessionId);
+    const session = await db.getSession(sessionId);
     if (!session) {
       req.user = null;
       req.sessionId = null;
@@ -41,14 +41,14 @@ async function authenticateSession(req, res, next) {
     const now = new Date().toISOString();
     if (session.expires_at < now) {
       // Expired! Clean it up
-      stmts.deleteSession.run(sessionId);
+      await db.deleteSession(sessionId);
       req.user = null;
       req.sessionId = null;
       return next();
     }
 
     // Load user
-    const user = stmts.getUserById.get(session.user_id);
+    const user = await db.getUserById(session.user_id);
     if (!user) {
       req.user = null;
       req.sessionId = null;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { API_BASE_URL } from '../config';
 import { HumanAuthIllustration, NodeTracerLine } from '../components/HumanIllustrations';
 
@@ -10,6 +10,51 @@ export default function Auth({ onLoginSuccess, initialTab = 'login' }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const googleBtnRef = useRef(null);
+
+  // Google Sign-In handler
+  const handleGoogleCredential = async (response) => {
+    setIsLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ credential: response.credential }),
+      });
+      const data = await res.json();
+      setIsLoading(false);
+      if (!res.ok) throw new Error(data.error || 'Google sign-in failed.');
+      onLoginSuccess(data.user);
+    } catch (err) {
+      setIsLoading(false);
+      setError(err.message);
+    }
+  };
+
+  // Initialize Google Identity Services button
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId || !window.google?.accounts?.id) return;
+
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: handleGoogleCredential,
+    });
+
+    if (googleBtnRef.current) {
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        type: 'standard',
+        theme: 'filled_black',
+        size: 'large',
+        text: 'continue_with',
+        shape: 'rectangular',
+        width: '100%',
+      });
+    }
+  }, [tab]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -212,6 +257,17 @@ export default function Auth({ onLoginSuccess, initialTab = 'login' }) {
               <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem', width: '100%', justifyContent: 'center' }} disabled={isLoading}>
                 {isLoading ? 'authenticating...' : 'authenticate()'}
               </button>
+
+              {/* Google Sign-In Divider */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '0.75rem 0 0.25rem' }}>
+                <div style={{ flex: 1, height: '1px', background: 'var(--border-panel)' }} />
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>// or</span>
+                <div style={{ flex: 1, height: '1px', background: 'var(--border-panel)' }} />
+              </div>
+
+              {/* Google Sign-In Button */}
+              <div ref={googleBtnRef} style={{ display: 'flex', justifyContent: 'center', minHeight: '44px' }} />
+
               <div style={{ textAlign: 'center', fontSize: '0.8rem', marginTop: '0.5rem' }}>
                 <button
                   type="button"

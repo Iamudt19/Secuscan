@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SecuScan — Input Validation Middleware
+ * Vulta — Input Validation Middleware
  *
  * Enforces strict schemas (type, length, format) on all incoming requests
  * to prevent injections, buffer overflows, and format string exploits.

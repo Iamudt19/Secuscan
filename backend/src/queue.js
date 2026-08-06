@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SecuScan — In-Process Async Job Queue
+ * Vulta — In-Process Async Job Queue
  *
  * A lightweight FIFO queue that runs scanner jobs sequentially (or with
  * configurable concurrency) without requiring Redis/BullMQ for a demo project.

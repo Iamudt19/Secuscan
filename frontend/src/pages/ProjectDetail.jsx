@@ -143,7 +143,7 @@ export default function ProjectDetail({ projectId, onBack, onScanTarget }) {
 
   const combinedColor = scoreInfo.combinedScore >= 80 ? 'var(--accent)' : scoreInfo.combinedScore >= 60 ? 'var(--cyan)' : 'var(--sev-critical)';
 
-  const ciWorkflowYaml = `name: SecuScan CI Auditor
+  const ciWorkflowYaml = `name: Vulta CI Auditor
 
 on:
   push:
@@ -157,10 +157,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Trigger SecuScan Security Check
+      - name: Trigger Vulta Security Check
         run: |
-          curl -X POST "https://your-secuscan-app.vercel.app/api/scan/ci-scan" \\
-            -H "Authorization: Bearer \${{ secrets.SECUSCAN_PROJECT_TOKEN }}" \\
+          curl -X POST "https://your-vulta-app.vercel.app/api/scan/ci-scan" \\
+            -H "Authorization: Bearer \${{ secrets.VULTA_PROJECT_TOKEN }}" \\
             -H "Content-Type: application/json" \\
             -d '{"repo_url": "\${{ github.event.repository.html_url }}", "commit_sha": "\${{ github.sha }}", "project_id": "${project.id}"}'`;
 
@@ -214,7 +214,7 @@ jobs:
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Secret Name</div>
-                    <code style={{ fontSize: '0.85rem', color: 'var(--text-code)', fontWeight: 'bold' }}>SECUSCAN_PROJECT_TOKEN</code>
+                    <code style={{ fontSize: '0.85rem', color: 'var(--text-code)', fontWeight: 'bold' }}>VULTA_PROJECT_TOKEN</code>
                   </div>
                   <div style={{ flex: 1.5, minWidth: 0 }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Secret Value</div>
@@ -242,7 +242,7 @@ jobs:
               <div>
                 <h4 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>2. Add GitHub Action Workflow</h4>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                  Create a file named `.github/workflows/secuscan.yml` in your repo and paste the configuration below:
+                  Create a file named `.github/workflows/vulta.yml` in your repo and paste the configuration below:
                 </p>
                 <pre style={{
                   background: 'rgba(0,0,0,0.3)',

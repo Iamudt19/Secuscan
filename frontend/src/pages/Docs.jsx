@@ -17,7 +17,7 @@ export default function Docs() {
   // Generate code snippet based on serverType and toggles
   const getGeneratedConfig = () => {
     if (serverType === 'nginx') {
-      let lines = ['# SecuScan Recommended Nginx Security Headers'];
+      let lines = ['# Vulta Recommended Nginx Security Headers'];
       if (enableHsts) lines.push('add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;');
       if (enableCsp) lines.push('add_header Content-Security-Policy "default-src \'self\'; script-src \'self\' \'unsafe-inline\'; style-src \'self\' \'unsafe-inline\';" always;');
       if (enableFrame) lines.push('add_header X-Frame-Options "DENY" always;');
@@ -29,7 +29,7 @@ export default function Docs() {
 
     if (serverType === 'express') {
       let lines = [
-        '// SecuScan Express.js Security Headers Middleware',
+        '// Vulta Express.js Security Headers Middleware',
         'const helmet = require(\'helmet\');',
         'const express = require(\'express\');',
         'const app = express();',
@@ -47,7 +47,7 @@ export default function Docs() {
 
     if (serverType === 'nextjs') {
       let lines = [
-        '// next.config.js - SecuScan Security Headers',
+        '// next.config.js - Vulta Security Headers',
         'module.exports = {',
         '  async headers() {',
         '    return [{',
@@ -63,7 +63,7 @@ export default function Docs() {
     }
 
     if (serverType === 'apache') {
-      let lines = ['# .htaccess - SecuScan Apache Security Headers', '<IfModule mod_headers.c>'];
+      let lines = ['# .htaccess - Vulta Apache Security Headers', '<IfModule mod_headers.c>'];
       if (enableHsts) lines.push('  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"');
       if (enableCsp) lines.push('  Header always set Content-Security-Policy "default-src \'self\';"');
       if (enableFrame) lines.push('  Header always set X-Frame-Options "DENY"');

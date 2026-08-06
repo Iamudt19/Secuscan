@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SecuScan — SSRF Guard (Enhanced, Phase 2)
+ * Vulta — SSRF Guard (Enhanced, Phase 2)
  *
  * Centralises all SSRF checks:
  *  1. Hostname blocklist (localhost, cloud metadata endpoints, etc.)
@@ -107,7 +107,7 @@ const ssrfAwareAxios = axios.create({
   maxRedirects: 0, // handle manually so we can re-check each hop
   validateStatus: () => true,
   headers: {
-    'User-Agent': 'SecuScan/2.0 security-audit-tool',
+    'User-Agent': 'Vulta/2.0 security-audit-tool',
   },
 });
 

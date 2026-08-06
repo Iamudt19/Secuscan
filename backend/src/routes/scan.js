@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SecuScan — Scan Routes
+ * Vulta — Scan Routes
  *
  * POST /api/scan    — submit a new scan job
  * GET  /api/scan/:id — get scan status + findings
@@ -12,7 +12,7 @@ const { v4: uuidv4 } = require('uuid');
 const { URL }        = require('url');
 const dns            = require('dns').promises;
 
-const { db, stmts, insertFindings } = require('../db');
+const db = require('../db');
 const { scoreFromFindings }     = require('../schema');
 const queue                     = require('../queue');
 const { assertSafeUrl }         = require('../ssrfGuard');
@@ -104,11 +104,11 @@ router.post('/', validateScanPost, async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required to scan under a project.' });
     }
-    let proj = stmts.getProjectByNameAndOwner.get(resolvedProjectName, req.user.id);
+    let proj = await db.getProjectByNameAndOwner(resolvedProjectName, req.user.id);
     if (!proj) {
       const newProjId = uuidv4();
-      const apiToken = 'secuscan_proj_' + require('crypto').randomBytes(24).toString('hex');
-      stmts.insertProjectWithOwner.run(newProjId, resolvedProjectName, apiToken, req.user.id);
+      const apiToken = 'vulta_proj_' + require('crypto').randomBytes(24).toString('hex');
+      await db.insertProjectWithOwner(newProjId, resolvedProjectName, apiToken, req.user.id);
       projectId = newProjId;
     } else {
       projectId = proj.id;
@@ -117,7 +117,7 @@ router.post('/', validateScanPost, async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required to scan under a project.' });
     }
-    const proj = stmts.getProjectWithOwner.get(projectId, req.user.id);
+    const proj = await db.getProjectWithOwner(projectId, req.user.id);
     if (!proj) {
       return res.status(403).json({ error: 'Access denied. You do not own this project.' });
     }
@@ -128,7 +128,7 @@ router.post('/', validateScanPost, async (req, res) => {
   const scanId = uuidv4();
   const targetUrl = parsedUrl.toString();
 
-  stmts.insertScan.run({
+  await db.insertScan({
     id:           scanId,
     target_url:   targetUrl,
     target_type:  targetType,
@@ -138,7 +138,7 @@ router.post('/', validateScanPost, async (req, res) => {
 
   // 4. Enqueue the scan job
   queue.enqueue(scanId, async () => {
-    stmts.updateScanStatus.run({ id: scanId, status: 'running', error_msg: null });
+    await db.updateScanStatus({ id: scanId, status: 'running', error_msg: null });
 
     let allFindings = [];
     let cleanup     = null;
@@ -212,14 +212,14 @@ router.post('/', validateScanPost, async (req, res) => {
         deduped.map((f) => processFinding(f))
       );
 
-      if (enrichedFindings.length > 0) insertFindings(enrichedFindings);
+      if (enrichedFindings.length > 0) await db.insertFindings(enrichedFindings);
 
       const { score, grade, counts } = scoreFromFindings(enrichedFindings);
-      stmts.completeScan.run({ id: scanId, score, grade, counts_json: JSON.stringify(counts) });
+      await db.completeScan({ id: scanId, score, grade, counts_json: JSON.stringify(counts) });
       return { score, grade, counts, findings: enrichedFindings };
 
     } catch (err) {
-      stmts.failScan.run({ id: scanId, error_msg: err.message });
+      await db.failScan({ id: scanId, error_msg: err.message });
       throw err;
     } finally {
       if (typeof cleanup === 'function') cleanup();
@@ -237,12 +237,12 @@ router.post('/', validateScanPost, async (req, res) => {
 
 // ─── GET /api/scan/:id ────────────────────────────────────────────────────────
 
-router.get('/:id', validateScanGet, (req, res) => {
+router.get('/:id', validateScanGet, async (req, res) => {
   const { id } = req.params;
 
   // Check in-memory queue status first (fast path for running jobs)
   const queueStatus = queue.getStatus(id);
-  const scanRow     = stmts.getScan.get(id);
+  const scanRow     = await db.getScan(id);
 
   if (!scanRow) {
     return res.status(404).json({ error: 'Scan not found.' });
@@ -253,7 +253,7 @@ router.get('/:id', validateScanGet, (req, res) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required to access project scans.' });
     }
-    const proj = stmts.getProjectWithOwner.get(scanRow.project_id, req.user.id);
+    const proj = await db.getProjectWithOwner(scanRow.project_id, req.user.id);
     if (!proj) {
       return res.status(404).json({ error: 'Scan not found.' });
     }
@@ -282,7 +282,7 @@ router.get('/:id', validateScanGet, (req, res) => {
   }
 
   if (scanRow.status === 'done') {
-    const rows = stmts.getFindings.all(id);
+    const rows = await db.getFindings(id);
     response.findings = rows.map((r) => ({
       id:                  r.id,
       category:            r.category,
@@ -312,7 +312,7 @@ router.post('/ci-scan', validateCiScanPost, async (req, res) => {
 
   try {
     // 1. Verify project and token
-    const project = stmts.getProject.get(project_id);
+    const project = await db.getProject(project_id);
     if (!project || project.api_token !== token) {
       return res.status(403).json({ error: 'Invalid project ID or API authorization token.' });
     }
@@ -323,7 +323,7 @@ router.post('/ci-scan', validateCiScanPost, async (req, res) => {
 
     // 2. Queue repo scan
     const scanId = uuidv4();
-    stmts.insertScan.run({
+    await db.insertScan({
       id:           scanId,
       target_url:   repo_url,
       target_type:  'repo',
@@ -332,7 +332,7 @@ router.post('/ci-scan', validateCiScanPost, async (req, res) => {
     });
 
     queue.enqueue(scanId, async () => {
-      stmts.updateScanStatus.run({ id: scanId, status: 'running', error_msg: null });
+      await db.updateScanStatus({ id: scanId, status: 'running', error_msg: null });
       let allFindings = [];
       let cleanup     = null;
 
@@ -362,12 +362,12 @@ router.post('/ci-scan', validateCiScanPost, async (req, res) => {
         });
 
         const enriched = await Promise.all(deduped.map((f) => processFinding(f)));
-        if (enriched.length > 0) insertFindings(enriched);
+        if (enriched.length > 0) await db.insertFindings(enriched);
 
         const { score, grade, counts } = scoreFromFindings(enriched);
-        stmts.completeScan.run({ id: scanId, score, grade, counts_json: JSON.stringify(counts) });
+        await db.completeScan({ id: scanId, score, grade, counts_json: JSON.stringify(counts) });
       } catch (err) {
-        stmts.failScan.run({ id: scanId, error_msg: err.message });
+        await db.failScan({ id: scanId, error_msg: err.message });
       } finally {
         if (typeof cleanup === 'function') cleanup();
       }
@@ -425,11 +425,7 @@ router.post('/webhooks/github', async (req, res) => {
       let projectName = 'Default Github Monitor';
 
       try {
-        const matchScan = db.prepare(`
-          SELECT project_id, project_name FROM scans
-          WHERE target_url LIKE ? AND project_id IS NOT NULL
-          LIMIT 1
-        `).get(`%${owner}/${repoName}%`);
+        const matchScan = await db.findProjectByScanUrl(`${owner}/${repoName}`);
 
         if (matchScan) {
           projectId = matchScan.project_id;
@@ -441,7 +437,7 @@ router.post('/webhooks/github', async (req, res) => {
 
       // Spawn async job
       const scanId = uuidv4();
-      stmts.insertScan.run({
+      await db.insertScan({
         id:           scanId,
         target_url:   cloneUrl,
         target_type:  'repo',
@@ -450,7 +446,7 @@ router.post('/webhooks/github', async (req, res) => {
       });
 
       queue.enqueue(scanId, async () => {
-        stmts.updateScanStatus.run({ id: scanId, status: 'running', error_msg: null });
+        await db.updateScanStatus({ id: scanId, status: 'running', error_msg: null });
         let allFindings = [];
         let cleanup     = null;
 
@@ -479,18 +475,18 @@ router.post('/webhooks/github', async (req, res) => {
           });
 
           const enriched = await Promise.all(deduped.map((f) => processFinding(f)));
-          if (enriched.length > 0) insertFindings(enriched);
+          if (enriched.length > 0) await db.insertFindings(enriched);
 
           const { score, grade, counts } = scoreFromFindings(enriched);
-          stmts.completeScan.run({ id: scanId, score, grade, counts_json: JSON.stringify(counts) });
+          await db.completeScan({ id: scanId, score, grade, counts_json: JSON.stringify(counts) });
 
           // Fetch latest website findings if project exists
           let websiteFindings = null;
           if (projectId) {
-            const latestScans = stmts.getLatestScansForProject.all(projectId, projectId);
+            const latestScans = await db.getLatestScansForProject(projectId, projectId);
             const siteScan = latestScans.find((s) => s.target_type === 'website');
             if (siteScan) {
-              websiteFindings = stmts.getFindings.all(siteScan.id).map((r) => ({
+              websiteFindings = (await db.getFindings(siteScan.id)).map((r) => ({
                 title: r.title,
                 severity: r.severity,
                 summary: r.plain_english_summary,
@@ -515,7 +511,7 @@ router.post('/webhooks/github', async (req, res) => {
 
         } catch (err) {
           console.error('[Webhook Scan Job Error]', err);
-          stmts.failScan.run({ id: scanId, error_msg: err.message });
+          await db.failScan({ id: scanId, error_msg: err.message });
         } finally {
           if (typeof cleanup === 'function') cleanup();
         }

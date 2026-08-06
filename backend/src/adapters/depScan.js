@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SecuScan — Dependency CVE Scanner Adapter (Phase 2)
+ * Vulta — Dependency CVE Scanner Adapter (Phase 2)
  *
  * Primary (per-ecosystem):
  *   Node  (package.json)      → npm audit --json

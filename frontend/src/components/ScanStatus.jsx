@@ -65,7 +65,7 @@ export default function ScanStatus({ scanId, onComplete, onError }) {
         // still pending/running — poll again in 2s
         setTimeout(poll, 2000);
       } catch (err) {
-        if (!cancelled) onError('Lost connection to SecuScan backend. Is it running?');
+        if (!cancelled) onError('Lost connection to Vulta backend. Is it running?');
       }
     };
 

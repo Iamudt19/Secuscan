@@ -3,7 +3,7 @@
 const axios = require('axios');
 
 /**
- * SecuScan — Core 6 Shipping Prompts Web Auditor
+ * Vulta — Core 6 Shipping Prompts Web Auditor
  *
  * Runs the following checks on a pasted website URL:
  * 1. Secure Authentication (Inspects login cookies for HttpOnly/Secure flags)
@@ -24,7 +24,7 @@ async function runSecurityChecklistCheck(targetUrl, scanId) {
     maxRedirects: 5, // follow redirects to support www. and language path routings
     validateStatus: () => true, // accept any status code so we can analyze error pages
     headers: {
-      'User-Agent': 'SecuScan-Web-Audit-Agent/1.0',
+      'User-Agent': 'Vulta-Web-Audit-Agent/1.0',
     },
   });
 
@@ -52,7 +52,7 @@ async function runSecurityChecklistCheck(targetUrl, scanId) {
             plain_english_summary: `The login cookie at "${path}" is missing the Secure or HttpOnly attribute flag: "${cookie}".`,
             real_world_impact: 'If a session cookie lacks HttpOnly, malicious scripts can read it to hijack user accounts. Lacking Secure means it is transmitted in plain-text over unencrypted HTTP.',
             fix: 'Set both HttpOnly and Secure flags when initiating session cookies: "Set-Cookie: session_id=xyz; Secure; HttpOnly; SameSite=Lax".',
-            source_tool: 'SecuScan Web Audit',
+            source_tool: 'Vulta Web Audit',
             technical_details: JSON.stringify({ path, cookie }),
           });
           break; // trigger once
@@ -96,7 +96,7 @@ async function runSecurityChecklistCheck(targetUrl, scanId) {
             plain_english_summary: `The endpoint "${path}" returned sensitive user records to an unauthenticated request (matched field: "${matchedKey}").`,
             real_world_impact: 'Without resource ownership checks, any guest or user can access, modify, or delete other users\' private profiles by guessing numeric IDs.',
             fix: 'Verify the user authentication session and enforce resource ownership checks on the server before database queries: "if (resource.owner_id !== loggedInUser.id) throw ForbiddenError()".',
-            source_tool: 'SecuScan Web Audit',
+            source_tool: 'Vulta Web Audit',
             technical_details: JSON.stringify({ path, responseData: res.data }),
           });
           break;
@@ -139,7 +139,7 @@ async function runSecurityChecklistCheck(targetUrl, scanId) {
         plain_english_summary: `A hardcoded credential/secret key (${matchedSecret.type}) was found exposed in the main HTML source code.`,
         real_world_impact: 'Attackers scan public web assets to steal Stripe or cloud credentials, using them to execute charges or access secure databases.',
         fix: 'Move all API credentials, private tokens, and keys to server-side environment variables and access them only through a backend layer.',
-        source_tool: 'SecuScan Web Audit',
+        source_tool: 'Vulta Web Audit',
         technical_details: JSON.stringify({ matchedSecret }),
       });
     }
@@ -165,7 +165,7 @@ async function runSecurityChecklistCheck(targetUrl, scanId) {
         plain_english_summary: 'Raw script tags submitted in query parameter "q" were reflected unescaped inside the page body.',
         real_world_impact: 'Failing to escape input enables Cross-Site Scripting (XSS), allowing malicious links to execute remote JavaScript in the victim\'s browser.',
         fix: 'Sanitize and HTML-encode all dynamic parameters before rendering them. Rely on secure front-end frameworks (like React or Vue) that auto-escape strings.',
-        source_tool: 'SecuScan Web Audit',
+        source_tool: 'Vulta Web Audit',
         technical_details: JSON.stringify({ reflected: xssTest }),
       });
     }
@@ -193,7 +193,7 @@ async function runSecurityChecklistCheck(targetUrl, scanId) {
         plain_english_summary: `Submitting database control quotes in query parameter "id" leaked raw database syntax messages (matched: "${matchedSqlError}").`,
         real_world_impact: 'Database syntax leaks suggest the application concatenates raw query parameters, exposing the DB to schema extraction or authentication bypasses.',
         fix: 'Never concatenate SQL queries. Always use parameterized queries (prepared statements) or secure ORMs to query databases.',
-        source_tool: 'SecuScan Web Audit',
+        source_tool: 'Vulta Web Audit',
         technical_details: JSON.stringify({ query: sqliTest, matchedSqlError }),
       });
     }
@@ -236,7 +236,7 @@ async function runSecurityChecklistCheck(targetUrl, scanId) {
         plain_english_summary: 'The application responded to multiple rapid consecutive requests without triggering a "429 Too Many Requests" response code.',
         real_world_impact: 'Without IP throttling, bots can flood authentication pages, execute brute force logins, or scrape catalog data.',
         fix: 'Deploy rate-limiting middleware (like express-rate-limit) on login/API endpoints, or route traffic through cloud firewalls like Cloudflare.',
-        source_tool: 'SecuScan Web Audit',
+        source_tool: 'Vulta Web Audit',
         technical_details: JSON.stringify({ requests: 8, rateLimited: false }),
       });
     }
@@ -262,7 +262,7 @@ async function runSecurityChecklistCheck(targetUrl, scanId) {
         plain_english_summary: `The server is missing HSTS or Content Security Policy (CSP) headers in its responses.`,
         real_world_impact: 'Without these headers, connections can be downgraded to plain HTTP, and browsers are vulnerable to script-injection (XSS) framing attacks.',
         fix: 'Add security headers to all production HTTP server configurations. For nginx: "add_header Content-Security-Policy ...;".',
-        source_tool: 'SecuScan Web Audit',
+        source_tool: 'Vulta Web Audit',
         technical_details: JSON.stringify({ hasHsts: !!hsts, hasCsp: !!csp }),
       });
     }

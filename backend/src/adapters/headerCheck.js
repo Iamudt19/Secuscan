@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SecuScan — Website Security Header Adapter (Phase 1, corrected Phase 2)
+ * Vulta — Website Security Header Adapter (Phase 1, corrected Phase 2)
  *
  * Correctness rules applied here:
  *
@@ -23,7 +23,7 @@ const axios  = require('axios');
 const { URL } = require('url');
 const { v4: uuidv4 } = require('uuid');
 
-const SOURCE_TOOL = 'secuscan-header-check';
+const SOURCE_TOOL = 'vulta-header-check';
 
 /**
  * Security header definitions.
@@ -174,7 +174,7 @@ async function runHeaderCheck(targetUrl, scanId) {
       maxRedirects: 5,
       validateStatus: () => true,
       headers: {
-        'User-Agent': 'SecuScan/2.0 security-audit-tool',
+        'User-Agent': 'Vulta/2.0 security-audit-tool',
         // SNI: important for sites behind shared hosting / CDNs
         Host: new URL(httpsUrl).hostname,
       },

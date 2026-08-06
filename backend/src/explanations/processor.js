@@ -2,7 +2,7 @@
 
 const axios = require('axios');
 const { TEMPLATES } = require('./templates');
-const { stmts } = require('../db');
+const db = require('../db');
 
 const LLM_TIMEOUT = 5000; // 5s timeout
 
@@ -197,7 +197,7 @@ async function processFinding(finding) {
   const cacheKey = `${finding.category}::${finding.title.replace(/\s+/g, '-').toLowerCase()}`;
 
   try {
-    const cached = stmts.getLlmCache.get(cacheKey);
+    const cached = await db.getLlmCache(cacheKey);
     if (cached) {
       const parsed = JSON.parse(cached.response_json);
       finding.plain_english_summary = parsed.plain_english_summary;
@@ -214,7 +214,7 @@ async function processFinding(finding) {
     if (response.plain_english_summary && response.real_world_impact && response.fix) {
       // Save to cache
       try {
-        stmts.insertLlmCache.run(cacheKey, JSON.stringify(response));
+        await db.insertLlmCache(cacheKey, JSON.stringify(response));
       } catch (err) {
         console.warn('[ExplanationProcessor] Cache write failed:', err.message);
       }

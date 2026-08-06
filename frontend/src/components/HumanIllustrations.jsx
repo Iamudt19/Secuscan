@@ -105,7 +105,7 @@ export function HumanSecurityHero() {
           <circle cx="30" cy="15" r="4" fill="#e5c07b" />
           <circle cx="44" cy="15" r="4" fill="#00e87b" />
           <text x="64" y="19" fill="#9ba4af" fontSize="10" fontFamily="'JetBrains Mono', monospace">
-            secuscan_audit.sh
+            vulta_audit.sh
           </text>
 
           {/* Code Lines inside window */}

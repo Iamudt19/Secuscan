@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SecuScan — Exposed Files & Risky Config Adapter (Phase 2)
+ * Vulta — Exposed Files & Risky Config Adapter (Phase 2)
  *
  * Pure filesystem walk — no external binaries required.
  * Flags:
@@ -110,7 +110,7 @@ function checkDockerfile(content, filePath, scanId) {
         'If an attacker breaks out of the application (e.g., via RCE), they immediately have root inside the container. Container escapes are documented and can lead to host compromise.',
       fix:
         '# Add a non-root user before the CMD/ENTRYPOINT:\nRUN addgroup --system app && adduser --system --ingroup app app\nUSER app\n\n# Or for Alpine:\nRUN adduser -S app\nUSER app',
-      source_tool: 'secuscan-config-check',
+      source_tool: 'vulta-config-check',
     });
   }
 
@@ -132,7 +132,7 @@ function checkDockerfile(content, filePath, scanId) {
               'If deployed to production, remote debuggers can attach to your Node.js process and execute arbitrary code — zero authentication required.',
             fix:
               '# Remove port ' + port.trim() + ' from EXPOSE:\n# Change:\nEXPOSE ' + port.trim() + '\n# To: (remove the line entirely for production)\n\n# Use --inspect only in development, never in production Dockerfiles.',
-            source_tool: 'secuscan-config-check',
+            source_tool: 'vulta-config-check',
           });
         }
       }
@@ -166,7 +166,7 @@ function checkDockerCompose(content, filePath, scanId) {
           'Database takeover — an attacker can connect to your MySQL/Postgres/Redis instance and read, modify, or delete all data.',
         fix:
           '# Use environment variable substitution instead:\nenvironment:\n  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # value from .env or host env\n\n# Store the actual value in .env (which is in .gitignore).',
-        source_tool: 'secuscan-config-check',
+        source_tool: 'vulta-config-check',
       });
       break; // one finding per file
     }
@@ -224,7 +224,7 @@ function runExposedFilesScan(repoPath, scanId, alreadyFlaggedFiles = []) {
               plain_english_summary: rule.summary,
               real_world_impact:     rule.impact,
               fix:                   rule.fix,
-              source_tool:           'secuscan-exposed-files',
+              source_tool:           'vulta-exposed-files',
             });
             break;
           }
@@ -250,7 +250,7 @@ function runExposedFilesScan(repoPath, scanId, alreadyFlaggedFiles = []) {
   }
 
   walk(repoPath);
-  return { findings, tool_used: 'secuscan-exposed-files' };
+  return { findings, tool_used: 'vulta-exposed-files' };
 }
 
 module.exports = { runExposedFilesScan };

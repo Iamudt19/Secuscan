@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SecuScan — Tier 1 Explanation Templates
+ * Vulta — Tier 1 Explanation Templates
  *
  * Pre-written templates with plain-English summaries, real-world impacts,
  * and copy-pasteable fixes for the ~30 most common security findings.
