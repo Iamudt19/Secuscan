@@ -2,10 +2,9 @@
 
 const { neon } = require('@neondatabase/serverless');
 
-const DATABASE_URL = process.env.DATABASE_URL;
-if (!DATABASE_URL) {
-  console.error('❌ DATABASE_URL environment variable is required. Get one free at https://neon.tech');
-  process.exit(1);
+const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://placeholder:placeholder@ep-placeholder.neon.tech/neondb?sslmode=require';
+if (!process.env.DATABASE_URL) {
+  console.warn('⚠️ DATABASE_URL environment variable is missing. Database operations will fail until configured.');
 }
 
 const sql = neon(DATABASE_URL);

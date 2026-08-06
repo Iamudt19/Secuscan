@@ -83,7 +83,16 @@ export default function ScanForm({ onScanStart, initialUrl = '', initialProjectN
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+
+      let data;
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(text.includes('DATABASE_URL') || !res.ok ? 'Database or backend environment error. Please check Vercel environment variables.' : 'Unexpected server response.');
+      }
+
       clearTimeout(wakeTimer);
       setIsWakingUp(false);
 
