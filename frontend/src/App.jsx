@@ -143,33 +143,6 @@ export default function App() {
               >
                 &lt;Projects/&gt;
               </button>
-
-              <button
-                type="button"
-                className={`btn ${view === 'docs' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                onClick={() => setView('docs')}
-              >
-                &lt;Docs/&gt;
-              </button>
-
-              <button
-                type="button"
-                className={`btn ${view === 'library' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                onClick={() => setView('library')}
-              >
-                &lt;ThreatLib/&gt;
-              </button>
-
-              <button
-                type="button"
-                className={`btn ${view === 'benchmark' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                onClick={() => setView('benchmark')}
-              >
-                &lt;Benchmark/&gt;
-              </button>
             </div>
           </div>
           
@@ -268,9 +241,7 @@ export default function App() {
           <NodeTracerLine label="Vulta v1.0 — Scan. Fix. Ship Fearless." labelColor="var(--text-muted)" />
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', marginTop: '0.75rem', fontSize: '0.78rem' }}>
             <button type="button" onClick={() => setView('home')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Home</button>
-            <button type="button" onClick={() => setView('docs')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Docs</button>
-            <button type="button" onClick={() => setView('library')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Threat Library</button>
-            <button type="button" onClick={() => setView('benchmark')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Benchmarks</button>
+            <button type="button" onClick={handleDashboardClick} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Projects</button>
             <button type="button" onClick={() => setView('settings')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Settings</button>
           </div>
         </div>

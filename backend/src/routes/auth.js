@@ -346,4 +346,38 @@ router.post('/google', async (req, res) => {
   }
 });
 
+// ─── GET /api/auth/api-key ──────────────────────────────────────────────────
+// Returns the logged-in user's unique API key and daily usage status.
+router.get('/api-key', async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  const user = await db.getUserById(req.user.id);
+  const today = new Date().toISOString().split('T')[0];
+  const usageToday = user.api_key_last_used_date === today ? (user.api_key_usage_count || 0) : 0;
+  return res.json({
+    apiKey: user.api_key || null,
+    usageToday,
+    limit: 2,
+    remaining: Math.max(0, 2 - usageToday),
+  });
+});
+
+// ─── POST /api/auth/api-key ─────────────────────────────────────────────────
+// Generates a new unique API key for the logged-in user and saves it to Neon DB.
+router.post('/api-key', async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  const newApiKey = await db.generateUserApiKey(req.user.id);
+  return res.json({
+    message: 'New unique API key generated.',
+    apiKey: newApiKey,
+    usageToday: 0,
+    limit: 2,
+    remaining: 2,
+  });
+});
+
 module.exports = router;
+

@@ -29,9 +29,16 @@ async function initDb() {
       verification_expires TEXT,
       reset_token          TEXT,
       reset_expires        TEXT,
+      api_key              TEXT UNIQUE,
+      api_key_usage_count  INTEGER NOT NULL DEFAULT 0,
+      api_key_last_used_date TEXT,
       created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
+
+  try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS api_key TEXT UNIQUE`; } catch {}
+  try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS api_key_usage_count INTEGER NOT NULL DEFAULT 0`; } catch {}
+  try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS api_key_last_used_date TEXT`; } catch {}
 
   await sql`
     CREATE TABLE IF NOT EXISTS projects (
@@ -188,6 +195,43 @@ const db = {
   getUserByResetToken: async (token) => {
     const rows = await sql`SELECT * FROM users WHERE reset_token = ${token}`;
     return rows[0];
+  },
+
+  getUserByApiKey: async (apiKey) => {
+    const rows = await sql`SELECT * FROM users WHERE api_key = ${apiKey}`;
+    return rows[0];
+  },
+
+  generateUserApiKey: async (userId) => {
+    const crypto = require('crypto');
+    const newKey = 'vulta_live_' + crypto.randomBytes(16).toString('hex');
+    await sql`UPDATE users SET api_key = ${newKey} WHERE id = ${userId}`;
+    return newKey;
+  },
+
+  checkAndUpdateApiKeyUsage: async (userId) => {
+    const today = new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
+    const rows = await sql`SELECT api_key_usage_count, api_key_last_used_date FROM users WHERE id = ${userId}`;
+    const user = rows[0];
+    if (!user) return { allowed: false, remaining: 0, usageToday: 0 };
+
+    let currentUsage = user.api_key_usage_count || 0;
+    let lastDate = user.api_key_last_used_date || '';
+
+    // If date has changed, reset daily counter
+    if (lastDate !== today) {
+      currentUsage = 0;
+      lastDate = today;
+    }
+
+    if (currentUsage >= 2) {
+      return { allowed: false, remaining: 0, usageToday: currentUsage, limit: 2 };
+    }
+
+    const newUsage = currentUsage + 1;
+    await sql`UPDATE users SET api_key_usage_count = ${newUsage}, api_key_last_used_date = ${today} WHERE id = ${userId}`;
+
+    return { allowed: true, remaining: 2 - newUsage, usageToday: newUsage, limit: 2 };
   },
 
   incrementFailedAttempts: async (lockedUntil, id) => {

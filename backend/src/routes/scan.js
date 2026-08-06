@@ -309,12 +309,29 @@ router.post('/ci-scan', validateCiScanPost, async (req, res) => {
   }
 
   const token = authHeader.split(' ')[1];
+  let project = null;
 
   try {
-    // 1. Verify project and token
-    const project = await db.getProject(project_id);
-    if (!project || project.api_token !== token) {
-      return res.status(403).json({ error: 'Invalid project ID or API authorization token.' });
+    // Check if token is a User API Key (vulta_live_...)
+    if (token.startsWith('vulta_live_')) {
+      const user = await db.getUserByApiKey(token);
+      if (!user) {
+        return res.status(403).json({ error: 'Invalid user API key.' });
+      }
+      const usage = await db.checkAndUpdateApiKeyUsage(user.id);
+      if (!usage.allowed) {
+        return res.status(429).json({ error: 'API key daily limit reached (2/2 requests used today). Please try again tomorrow.' });
+      }
+      // If project_id provided, verify project
+      if (project_id) {
+        project = await db.getProject(project_id);
+      }
+    } else {
+      // Standard Project API Token
+      project = await db.getProject(project_id);
+      if (!project || project.api_token !== token) {
+        return res.status(403).json({ error: 'Invalid project ID or API authorization token.' });
+      }
     }
 
     if (!repo_url) {

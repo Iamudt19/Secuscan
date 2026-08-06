@@ -1,23 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NodeTracerLine } from '../components/HumanIllustrations';
+import { API_BASE_URL } from '../config';
 
 export default function Settings({ currentUser, onLogout, onNavigateToAuth }) {
-  const [apiKey, setApiKey] = useState('vulta_user_live_8f3a91b2c4e57890');
-  const [copiedKey, setCopiedKey] = useState(false);
   const [activeTab, setActiveTab] = useState('account'); // 'account' | 'apikeys' | 'logs' | 'auth-guide'
-
-  const handleCopyKey = async () => {
-    try {
-      await navigator.clipboard.writeText(apiKey);
-      setCopiedKey(true);
-      setTimeout(() => setCopiedKey(false), 2000);
-    } catch {}
-  };
-
-  const handleRegenerateKey = () => {
-    const newK = 'vulta_user_live_' + Math.random().toString(36).substring(2, 18);
-    setApiKey(newK);
-  };
 
   return (
     <div style={{ padding: '2.5rem 0' }}>
@@ -110,48 +96,27 @@ export default function Settings({ currentUser, onLogout, onNavigateToAuth }) {
               ✦ API Tokens for GitHub Actions &amp; CLI
             </h2>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-              Use your Vulta API key to trigger automated security audits directly inside your GitHub Actions workflows or deployment scripts.
+              Generate API tokens to trigger automated security audits directly inside your GitHub Actions workflows or deployment scripts.
             </p>
 
-            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-panel)', padding: '1.25rem', borderRadius: 'var(--radius)', marginBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-                <span className="code-tag code-tag--accent">// active_api_key</span>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button type="button" className="btn btn-ghost" style={{ fontSize: '0.72rem', padding: '0.25rem 0.5rem' }} onClick={handleRegenerateKey}>
-                    regenerate_key()
-                  </button>
-                  <button type="button" className="btn btn-primary" style={{ fontSize: '0.72rem', padding: '0.25rem 0.6rem' }} onClick={handleCopyKey}>
-                    {copiedKey ? '✓ Copied!' : 'Copy Key'}
-                  </button>
-                </div>
+            {!currentUser ? (
+              <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-panel)', padding: '2rem', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🔒</div>
+                <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Authentication Required</h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', maxWidth: '440px', margin: '0 auto 1.25rem' }}>
+                  API tokens are bound to your user account. Please log in or register to generate your daily API tokens.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={onNavigateToAuth}
+                >
+                  &lt;sign_in_to_generate_keys/&gt;
+                </button>
               </div>
-              <input
-                type="text"
-                readOnly
-                value={apiKey}
-                className="scan-form__input"
-                style={{ width: '100%', fontFamily: "'JetBrains Mono', monospace", color: 'var(--cyan)' }}
-              />
-            </div>
-
-            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', padding: '1.25rem', borderRadius: 'var(--radius)' }}>
-              <div className="code-tag code-tag--cyan" style={{ marginBottom: '0.5rem' }}>// GitHub Actions Workflow (.github/workflows/security.yml)</div>
-              <pre className="finding-card__code">
-{`name: Vulta Security Check
-on: [push, pull_request]
-jobs:
-  audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run Vulta Audit
-        run: |
-          curl -X POST https://your-vulta-app.vercel.app/api/scan \\
-            -H "Authorization: Bearer ${apiKey}" \\
-            -H "Content-Type: application/json" \\
-            -d '{"url": "https://github me/repo"}'`}
-              </pre>
-            </div>
+            ) : (
+              <ApiKeyManager currentUser={currentUser} />
+            )}
           </div>
         )}
 
@@ -225,3 +190,171 @@ jobs:
     </div>
   );
 }
+
+function ApiKeyManager({ currentUser }) {
+  const [apiKey, setApiKey] = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [usageInfo, setUsageInfo] = useState({ usageToday: 0, limit: 2, remaining: 2 });
+  const [error, setError] = useState('');
+
+  // Fetch current user API key & daily usage from backend
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/auth/api-key`, { credentials: 'include' })
+      .then((res) => res.json())
+      .then((data) => {
+        setLoading(false);
+        if (data.apiKey) setApiKey(data.apiKey);
+        setUsageInfo({
+          usageToday: data.usageToday || 0,
+          limit: data.limit || 2,
+          remaining: data.remaining ?? 2,
+        });
+      })
+      .catch(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  const handleGenerateKey = async () => {
+    setGenerating(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/api-key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      const data = await res.json();
+      setGenerating(false);
+      if (!res.ok) throw new Error(data.error || 'Failed to generate API key.');
+      setApiKey(data.apiKey);
+      setShowKey(true);
+      setUsageInfo({
+        usageToday: data.usageToday || 0,
+        limit: data.limit || 2,
+        remaining: data.remaining ?? 2,
+      });
+    } catch (err) {
+      setGenerating(false);
+      setError(err.message);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!apiKey) return;
+    try {
+      await navigator.clipboard.writeText(apiKey);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  if (loading) {
+    return (
+      <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+        Loading API key details...
+      </div>
+    );
+  }
+
+  const maskedKey = apiKey
+    ? apiKey.slice(0, 11) + '••••••••••••••••••••••••'
+    : 'No active API key generated yet';
+
+  return (
+    <div>
+      {/* Key Status Banner */}
+      <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-panel)', padding: '1.25rem', borderRadius: 'var(--radius)', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <span className="code-tag code-tag--accent" style={{ marginRight: '0.5rem' }}>// user_api_key</span>
+            <span style={{ fontSize: '0.75rem', color: usageInfo.remaining > 0 ? 'var(--accent)' : 'var(--sev-high)', fontFamily: "'JetBrains Mono', monospace" }}>
+              [{usageInfo.usageToday}/{usageInfo.limit} scans used today]
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {apiKey && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ fontSize: '0.72rem', padding: '0.25rem 0.5rem' }}
+                onClick={() => setShowKey(!showKey)}
+              >
+                {showKey ? '👁 Hide' : '👁 Reveal'}
+              </button>
+            )}
+            {apiKey && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ fontSize: '0.72rem', padding: '0.25rem 0.6rem' }}
+                onClick={handleCopy}
+              >
+                {copied ? '✓ Copied!' : 'Copy Key'}
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ fontSize: '0.72rem', padding: '0.25rem 0.6rem', border: '1px solid var(--accent)', color: 'var(--accent)' }}
+              onClick={handleGenerateKey}
+              disabled={generating}
+            >
+              {generating ? 'generating...' : apiKey ? 'regenerate_key()' : 'generate_key()'}
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="error-banner" style={{ marginBottom: '0.75rem', fontSize: '0.8rem' }}>
+            {error}
+          </div>
+        )}
+
+        <input
+          type="text"
+          readOnly
+          value={showKey ? apiKey : maskedKey}
+          className="scan-form__input"
+          style={{ width: '100%', fontFamily: "'JetBrains Mono', monospace", color: apiKey ? 'var(--cyan)' : 'var(--text-muted)' }}
+        />
+      </div>
+
+      {/* Usage Limit Explainer */}
+      <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', padding: '1.25rem', borderRadius: 'var(--radius)', marginBottom: '1.5rem' }}>
+        <h4 style={{ fontSize: '0.88rem', color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+          ⚡ Daily Rate Limit: 2 Automated Scans / Day
+        </h4>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+          Each unique API key is bound to your account and allowed up to <strong>2 automated scan requests per calendar day</strong>. This protects backend scanning nodes while providing free CI/CD verification for your projects.
+        </p>
+      </div>
+
+      {/* CI/CD Integration Snippet */}
+      {apiKey && (
+        <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', padding: '1.25rem', borderRadius: 'var(--radius)' }}>
+          <div className="code-tag code-tag--cyan" style={{ marginBottom: '0.5rem' }}>// GitHub Actions Workflow (.github/workflows/vulta.yml)</div>
+          <pre className="finding-card__code">
+{`name: Vulta Security Check
+on: [push, pull_request]
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Vulta Audit
+        run: |
+          curl -X POST https://your-vulta-app.vercel.app/api/scan/ci-scan \\
+            -H "Authorization: Bearer ${apiKey}" \\
+            -H "Content-Type: application/json" \\
+            -d '{"repo_url": "https://github.com/owner/repo"}'`}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
