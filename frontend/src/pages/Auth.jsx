@@ -2,6 +2,17 @@ import { useState, useEffect, useRef } from 'react';
 import { API_BASE_URL } from '../config';
 import { HumanAuthIllustration, NodeTracerLine } from '../components/HumanIllustrations';
 
+// Safe JSON parser — avoids crash when backend returns plain text / HTML
+async function safeJson(res) {
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('application/json')) return res.json();
+  const text = await res.text();
+  // Try to parse anyway in case content-type is wrong
+  try { return JSON.parse(text); } catch {}
+  // Return a normalised error object
+  return { error: res.ok ? text : (text.slice(0, 120) || `Server error (${res.status})`) };
+}
+
 export default function Auth({ onLoginSuccess, initialTab = 'login' }) {
   const [tab, setTab] = useState(initialTab); // 'login' | 'register' | 'forgot' | 'reset' | 'verify'
   const [email, setEmail] = useState('');
@@ -24,7 +35,7 @@ export default function Auth({ onLoginSuccess, initialTab = 'login' }) {
         credentials: 'include',
         body: JSON.stringify({ credential: response.credential }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       setIsLoading(false);
       if (!res.ok) throw new Error(data.error || 'Google sign-in failed.');
       onLoginSuccess(data.user);
@@ -82,7 +93,7 @@ export default function Auth({ onLoginSuccess, initialTab = 'login' }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       setIsLoading(false);
 
       if (!res.ok) throw new Error(data.error || 'Registration failed.');
@@ -106,7 +117,7 @@ export default function Auth({ onLoginSuccess, initialTab = 'login' }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       setIsLoading(false);
 
       if (!res.ok) throw new Error(data.error || 'Login failed.');
@@ -129,7 +140,7 @@ export default function Auth({ onLoginSuccess, initialTab = 'login' }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       setIsLoading(false);
 
       if (!res.ok) throw new Error(data.error || 'Verification failed.');
@@ -153,7 +164,7 @@ export default function Auth({ onLoginSuccess, initialTab = 'login' }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       setIsLoading(false);
 
       if (!res.ok) throw new Error(data.error || 'Request failed.');
@@ -176,7 +187,7 @@ export default function Auth({ onLoginSuccess, initialTab = 'login' }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       setIsLoading(false);
 
       if (!res.ok) throw new Error(data.error || 'Reset failed.');
