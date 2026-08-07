@@ -10,32 +10,55 @@ import AdminPortal from './pages/AdminPortal';
 import AttackSurface from './pages/AttackSurface';
 import Watchdog from './pages/Watchdog';
 import RedTeamSimulator from './pages/RedTeamSimulator';
+import LandingPage from './pages/LandingPage';
 import { API_BASE_URL } from './config';
 import { NodeTracerLine } from './components/HumanIllustrations';
 
+// ─── Check if user navigated directly to /admin ──────────────────────────────
+const IS_ADMIN_ROUTE = window.location.pathname === '/admin';
+
 export default function App() {
-  const [view, setView]               = useState('home'); // 'home' | 'results' | 'dashboard' | 'project-detail' | 'auth' | 'settings' | 'contact' | 'admin' | 'recon' | 'watchdog' | 'redteam'
-  const [scanId, setScanId]           = useState(null);
-  const [targetUrl, setTargetUrl]     = useState('');
+  const [view, setView] = useState('landing');
+  const [scanId, setScanId] = useState(null);
+  const [targetUrl, setTargetUrl] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [prefilledProjectName, setPrefilledProjectName] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [navOpen, setNavOpen] = useState(true);
 
   // Check user session on boot
   useEffect(() => {
+    // If directly visiting /admin, skip session check and go straight there
+    if (IS_ADMIN_ROUTE) {
+      setIsCheckingAuth(false);
+      return;
+    }
     fetch(`${API_BASE_URL}/api/auth/me`)
       .then((r) => r.json())
       .then((data) => {
         if (data.user) {
           setCurrentUser(data.user);
+          setView('home');
+        } else {
+          setView('landing');
         }
         setIsCheckingAuth(false);
       })
       .catch(() => {
+        setView('landing');
         setIsCheckingAuth(false);
       });
   }, []);
+
+  // ── Navigation helpers ──────────────────────────────────────────────────────
+  const requireAuth = (destination) => {
+    if (!currentUser) {
+      setView('auth');
+    } else {
+      setView(destination);
+    }
+  };
 
   const handleSelectScan = (id) => {
     setScanId(id);
@@ -52,6 +75,7 @@ export default function App() {
     setScanId(null);
     setTargetUrl('');
     setPrefilledProjectName('');
+    if (!currentUser) { setView('landing'); return; }
     setView('home');
   };
 
@@ -70,13 +94,11 @@ export default function App() {
         if (type === 'repo' && btn.textContent.includes('repo')) btn.click();
         if (type === 'website' && btn.textContent.includes('web')) btn.click();
       });
-
       const urlInput = document.getElementById('scan-url-input');
       if (urlInput) {
         urlInput.value = existingUrl;
         urlInput.dispatchEvent(new Event('input', { bubbles: true }));
       }
-
       const projInput = document.getElementById('project-name');
       if (projInput) {
         projInput.value = projectName;
@@ -88,19 +110,12 @@ export default function App() {
   const handleLogout = async () => {
     try {
       await fetch(`${API_BASE_URL}/api/auth/logout`, { method: 'POST' });
-      setCurrentUser(null);
-      setView('home');
     } catch {}
+    setCurrentUser(null);
+    setView('landing');
   };
 
-  const handleDashboardClick = () => {
-    if (!currentUser) {
-      setView('auth');
-    } else {
-      setView('dashboard');
-    }
-  };
-
+  // ── Loading spinner ─────────────────────────────────────────────────────────
   if (isCheckingAuth) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -112,122 +127,148 @@ export default function App() {
     );
   }
 
+  // ── /admin route — full-page, no navbar ────────────────────────────────────
+  if (IS_ADMIN_ROUTE) {
+    return <AdminPortal />;
+  }
+
+  // ── Landing page for guests ────────────────────────────────────────────────
+  if (!currentUser && view !== 'auth') {
+    return <LandingPage onGetStarted={() => setView('auth')} />;
+  }
+
+  // ── Auth page (no navbar) ──────────────────────────────────────────────────
+  if (view === 'auth') {
+    return (
+      <Auth
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          setView('home');
+        }}
+        onBack={currentUser ? () => setView('home') : null}
+      />
+    );
+  }
+
+  // ── Main app — logged-in only ──────────────────────────────────────────────
   const isActiveScan = ['home', 'results'].includes(view);
   const isActiveProjects = ['dashboard', 'project-detail'].includes(view);
 
+  const navItems = [
+    { label: '<Scan/>', active: isActiveScan, onClick: () => setView('home') },
+    { label: '<Projects/>', active: isActiveProjects, onClick: () => setView('dashboard') },
+    { label: '<Watchdog/>', active: view === 'watchdog', onClick: () => setView('watchdog') },
+    { label: '<RedTeam/>', active: view === 'redteam', onClick: () => setView('redteam') },
+    { label: '<Contact/>', active: view === 'contact', onClick: () => setView('contact') },
+  ];
+
   return (
     <>
+      <style>{`
+        @keyframes navSlideDown {
+          from { opacity: 0; transform: translateY(-12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .nav-collapse-enter {
+          animation: navSlideDown 0.25s ease both;
+        }
+        .nav-toggle-btn {
+          background: rgba(0,255,128,0.08);
+          border: 1px solid rgba(0,255,128,0.25);
+          border-radius: 8px;
+          padding: 0.35rem 0.75rem;
+          color: var(--cyan);
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 0.72rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex; align-items: center; gap: 0.4rem;
+        }
+        .nav-toggle-btn:hover {
+          background: rgba(0,255,128,0.15);
+          border-color: var(--cyan);
+        }
+        .nav-chevron {
+          transition: transform 0.25s ease;
+          display: inline-block;
+        }
+        .nav-chevron.open { transform: rotate(180deg); }
+      `}</style>
+
       {/* Navbar */}
       <nav className="navbar" aria-label="Main navigation">
-        <div className="container--wide navbar__inner" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
-            <a href="/" className="navbar__logo" onClick={(e) => { e.preventDefault(); handleNewScan(); }}>
+        <div className="container--wide navbar__inner" style={{ flexWrap: 'wrap', gap: '0.6rem' }}>
+
+          {/* Logo + toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <a
+              href="/"
+              className="navbar__logo"
+              onClick={(e) => { e.preventDefault(); setView('home'); }}
+            >
               <div className="navbar__logo-icon" aria-hidden="true">✦</div>
               Vulta
             </a>
 
-            {/* Code-style Navigation Links */}
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className={`btn ${isActiveScan ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                onClick={handleNewScan}
-              >
-                &lt;Scan/&gt;
-              </button>
-
-              <button
-                type="button"
-                className={`btn ${isActiveProjects ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                onClick={handleDashboardClick}
-              >
-                &lt;Projects/&gt;
-              </button>
-
-              <button
-                type="button"
-                className={`btn ${view === 'recon' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                onClick={() => setView('recon')}
-              >
-                &lt;Recon/&gt;
-              </button>
-
-              <button
-                type="button"
-                className={`btn ${view === 'watchdog' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                onClick={() => setView('watchdog')}
-              >
-                &lt;Watchdog/&gt;
-              </button>
-
-              <button
-                type="button"
-                className={`btn ${view === 'redteam' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                onClick={() => setView('redteam')}
-              >
-                &lt;RedTeam/&gt;
-              </button>
-
-              <button
-                type="button"
-                className={`btn ${view === 'contact' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                onClick={() => setView('contact')}
-              >
-                &lt;Contact/&gt;
-              </button>
-
-              <button
-                type="button"
-                className={`btn ${view === 'admin' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                onClick={() => setView('admin')}
-              >
-                &lt;Admin/&gt;
-              </button>
-            </div>
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Collapse toggle button */}
             <button
-              type="button"
-              className={`btn ${view === 'settings' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-              onClick={() => setView('settings')}
+              className="nav-toggle-btn"
+              onClick={() => setNavOpen((o) => !o)}
+              aria-label="Toggle navigation"
             >
-              &lt;Settings/&gt;
+              menu
+              <span className={`nav-chevron ${navOpen ? 'open' : ''}`}>▾</span>
             </button>
+          </div>
 
-            {currentUser ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--cyan)', fontFamily: "'JetBrains Mono', monospace" }}>
-                  {currentUser.email.split('@')[0]}
-                </span>
+          {/* Collapsible nav links */}
+          {navOpen && (
+            <div
+              className="nav-collapse-enter"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', flex: 1, justifyContent: 'space-between' }}
+            >
+              {/* Page links */}
+              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                {navItems.map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    className={`btn ${item.active ? 'btn-primary' : 'btn-ghost'}`}
+                    style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
+                    onClick={item.onClick}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Right: settings + user */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <button
                   type="button"
-                  className="btn btn-ghost"
-                  style={{ fontSize: '0.72rem', padding: '0.25rem 0.55rem', color: 'var(--sev-critical)' }}
-                  onClick={handleLogout}
+                  className={`btn ${view === 'settings' ? 'btn-primary' : 'btn-ghost'}`}
+                  style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
+                  onClick={() => setView('settings')}
                 >
-                  exit()
+                  &lt;Settings/&gt;
                 </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--cyan)', fontFamily: "'JetBrains Mono', monospace" }}>
+                    {currentUser.email.split('@')[0]}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ fontSize: '0.72rem', padding: '0.25rem 0.55rem', color: 'var(--sev-critical)' }}
+                    onClick={handleLogout}
+                  >
+                    exit()
+                  </button>
+                </div>
               </div>
-            ) : (
-              <button
-                type="button"
-                className={`btn ${view === 'auth' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                onClick={() => setView('auth')}
-              >
-                &lt;Auth/&gt;
-              </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -262,19 +303,9 @@ export default function App() {
             onScanTarget={handleScanProjectTarget}
           />
         )}
-        {view === 'auth' && (
-          <Auth
-            onLoginSuccess={(user) => {
-              setCurrentUser(user);
-              setView('dashboard');
-            }}
-          />
-        )}
-        {view === 'recon' && <AttackSurface />}
         {view === 'watchdog' && <Watchdog currentUser={currentUser} onNavigateToAuth={() => setView('auth')} />}
         {view === 'redteam' && <RedTeamSimulator />}
         {view === 'contact' && <Contact />}
-        {view === 'admin' && <AdminPortal />}
         {view === 'settings' && (
           <Settings
             currentUser={currentUser}
@@ -290,10 +321,9 @@ export default function App() {
           <NodeTracerLine label="Vulta v1.0 — Scan. Fix. Ship Fearless." labelColor="var(--text-muted)" />
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', marginTop: '0.75rem', fontSize: '0.78rem', flexWrap: 'wrap' }}>
             <button type="button" onClick={() => setView('home')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Home</button>
-            <button type="button" onClick={handleDashboardClick} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Projects</button>
-            <button type="button" onClick={() => setView('recon')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Recon</button>
+            <button type="button" onClick={() => setView('dashboard')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Projects</button>
+            <button type="button" onClick={() => setView('watchdog')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Watchdog</button>
             <button type="button" onClick={() => setView('contact')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Contact</button>
-            <button type="button" onClick={() => setView('admin')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Admin</button>
             <button type="button" onClick={() => setView('settings')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Settings</button>
           </div>
         </div>
